@@ -351,25 +351,104 @@
 
         <!-- Sensor Source Selector -->
         <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-2">
-          <div class="text-xs font-semibold">Fonte dos Sensores:</div>
+          <div class="text-xs font-semibold">Fonte dos Dados:</div>
           <div class="flex items-center gap-2">
-            <button id="btnModeSim" type="button"
-              class="px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]">
-              Simulador
-            </button>
             <button id="btnModeReal" type="button"
-              class="px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)]">
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm">
               Sensores do Celular (IMU)
+            </button>
+            <button id="btnModeSim" type="button"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)]">
+              Simulador
             </button>
           </div>
         </div>
 
-        <!-- Simulator Presets -->
-        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3.5">
+        <!-- Real Sensor Guide & Telemetry Card (Visible by default in Real Sensor Mode) -->
+        <div id="boxRealSensors" class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full status-dot" style="background: var(--success);"></span>
+              <h3 class="text-sm font-semibold">Sensores do Celular Ativos</h3>
+            </div>
+            <span id="sensorStatusPill" class="text-xs px-2.5 py-0.5 rounded-full bg-[var(--secondary)] text-[var(--secondary-foreground)] font-mono font-medium">
+              IMU Nativo · 50 Hz
+            </span>
+          </div>
+
+          <!-- Posicionamento Anatômico & Calibração -->
+          <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-2 text-xs">
+            <div class="font-semibold text-[var(--foreground)] flex items-center gap-1.5">
+              <span>📍 Como posicionar o celular no paciente:</span>
+            </div>
+            <p class="text-[var(--muted-foreground)] leading-relaxed">
+              Fixe o aparelho na vertical com cinta elástica no nível da <strong>transição lombar/sacral (L5–S1)</strong>, alinhado ao centro de gravidade do corpo.
+            </p>
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <button id="btnRealCalibrateSide" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition">
+                Zerar Ângulo Neutro
+              </button>
+              <span class="text-[11px] text-[var(--muted-foreground)]">Clique com o paciente já na postura inicial ereta.</span>
+            </div>
+          </div>
+
+          <!-- Telemetria Bruta Triaxial -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-semibold text-[var(--foreground)]">Telemetria Inercial Triaxial</span>
+              <span class="text-[11px] text-[var(--muted-foreground)]">Acelerômetro + Giroscópio</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-xs font-mono tabular-nums">
+              <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
+                <span class="text-[var(--muted-foreground)] font-sans block text-[11px]">Accel X (ML)</span>
+                <span id="rawAx" class="font-semibold">0.00 m/s²</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
+                <span class="text-[var(--muted-foreground)] font-sans block text-[11px]">Accel Y (AP)</span>
+                <span id="rawAy" class="font-semibold">0.00 m/s²</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
+                <span class="text-[var(--muted-foreground)] font-sans block text-[11px]">Accel Z (Grav.)</span>
+                <span id="rawAz" class="font-semibold">9.80 m/s²</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Limiar de Sensibilidade (Ajuste Clínico) -->
+          <div class="pt-2 border-t border-[var(--card-border)] space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-[var(--muted-foreground)]">Limiar da Zona Estável (Sensibilidade)</span>
+              <span id="lblThresholdReal" class="font-mono tabular-nums font-semibold">1.5°</span>
+            </div>
+            <input id="sliderThresholdReal" type="range" min="0.8" max="3.0" step="0.1" value="1.5" class="w-full accent-[var(--primary)]" />
+          </div>
+
+          <!-- Status & Permissões -->
+          <div id="realSensorNotice" class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 text-xs text-[var(--muted-foreground)] space-y-1.5">
+            <div class="font-semibold text-[var(--foreground)] flex items-center justify-between">
+              <span>Status do Dispositivo:</span>
+            </div>
+            <p id="realSensorHint" class="leading-relaxed">
+              Lendo acelerômetro e giroscópio do aparelho em tempo real.
+            </p>
+            <button id="btnGrantIosPermission" type="button" class="hidden w-full py-2 px-3 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-semibold text-xs transition shadow-sm">
+              📲 Toque aqui para autorizar os sensores do iPhone
+            </button>
+            <button id="btnSwitchToSimNotice" type="button" class="hidden w-full py-1.5 px-3 rounded-lg border border-[var(--primary)] bg-[var(--card)] text-[var(--primary)] font-semibold text-xs transition hover:bg-[var(--primary)] hover:text-[var(--primary-foreground)]">
+              Alternar para o Simulador de Paciente
+            </button>
+          </div>
+        </div>
+
+        <!-- Simulator Presets (Hidden when in Real Sensor Mode; Only appears in Simulator Mode) -->
+        <div id="boxSimBench" class="hidden bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3.5">
           <div class="space-y-1">
-            <h3 class="text-sm font-semibold">Bancada de Simulação de Paciente</h3>
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-semibold">Bancada de Simulação de Paciente</h3>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--secondary-foreground)]">Modo Sintético</span>
+            </div>
             <p class="text-xs text-[var(--muted-foreground)]">
-              Alterne os perfis abaixo durante ou antes da coleta para ver o aplicativo reagir às oscilações em tempo real:
+              Alterne os perfis abaixo para testar o comportamento do aplicativo sem depender de movimento físico:
             </p>
           </div>
 
@@ -431,33 +510,6 @@
             </div>
             <input id="sliderThreshold" type="range" min="0.8" max="3.0" step="0.1" value="1.5" class="w-full accent-[var(--primary)]" />
           </div>
-        </div>
-
-        <!-- Live Raw Telemetry -->
-        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold">Telemetria Bruta dos Sensores (IMU)</h3>
-            <span id="sensorStatusPill" class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--secondary-foreground)]">
-              Simulado · 50 Hz
-            </span>
-          </div>
-          <div class="grid grid-cols-3 gap-2 text-xs font-mono tabular-nums">
-            <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
-              <span class="text-[var(--muted-foreground)] font-sans block">Accel X (ML)</span>
-              <span id="rawAx">0.04 m/s²</span>
-            </div>
-            <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
-              <span class="text-[var(--muted-foreground)] font-sans block">Accel Y (AP)</span>
-              <span id="rawAy">0.09 m/s²</span>
-            </div>
-            <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
-              <span class="text-[var(--muted-foreground)] font-sans block">Accel Z (G)</span>
-              <span id="rawAz">9.80 m/s²</span>
-            </div>
-          </div>
-          <p id="realSensorHint" class="text-xs text-[var(--muted-foreground)]">
-            Em um celular real (iOS/Android), o app lê o acelerômetro triaxial e giroscópio nativamente, aplica filtro passa-baixa (5 Hz) para isolar a oscilação corporal e descarta artefatos de vibração.
-          </p>
         </div>
 
       </aside>
@@ -734,7 +786,7 @@
 
       // State
       const state = {
-        mode: 'sim', // 'sim' | 'real'
+        mode: 'real', // Default: Phone sensors ('real' | 'sim')
         preset: 'stable', // 'stable' | 'moderate' | 'unstable' | 'manual'
         activeTab: 'live',
         audioEnabled: false,
@@ -948,6 +1000,13 @@
         rawAx: document.getElementById('rawAx'),
         rawAy: document.getElementById('rawAy'),
         rawAz: document.getElementById('rawAz'),
+        boxSimBench: document.getElementById('boxSimBench'),
+        boxRealSensors: document.getElementById('boxRealSensors'),
+        btnRealCalibrateSide: document.getElementById('btnRealCalibrateSide'),
+        sliderThresholdReal: document.getElementById('sliderThresholdReal'),
+        lblThresholdReal: document.getElementById('lblThresholdReal'),
+        btnGrantIosPermission: document.getElementById('btnGrantIosPermission'),
+        btnSwitchToSimNotice: document.getElementById('btnSwitchToSimNotice'),
         tabLive: document.getElementById('tabLive'),
         tabReport: document.getElementById('tabReport'),
         tabHistory: document.getElementById('tabHistory'),
@@ -1092,15 +1151,26 @@ Para a construção e execução do produto técnico de avaliação postural ine
         if (state.mode === 'sim' && state.preset !== 'manual') setPreset('manual');
       });
 
-      el.sliderThreshold.addEventListener('input', () => {
-        state.stableLimitDeg = parseFloat(el.sliderThreshold.value);
+      function updateThreshold(val) {
+        state.stableLimitDeg = parseFloat(val);
         state.moderateLimitDeg = +(state.stableLimitDeg * 2.25).toFixed(1);
-        el.lblThreshold.textContent = `${state.stableLimitDeg.toFixed(1)}°`;
-        el.lblZoneGreen.textContent = state.stableLimitDeg.toFixed(1);
+        const str = state.stableLimitDeg.toFixed(1);
+        if (el.sliderThreshold) el.sliderThreshold.value = str;
+        if (el.sliderThresholdReal) el.sliderThresholdReal.value = str;
+        if (el.lblThreshold) el.lblThreshold.textContent = `${str}°`;
+        if (el.lblThresholdReal) el.lblThresholdReal.textContent = `${str}°`;
+        el.lblZoneGreen.textContent = str;
         el.lblZoneAmber.textContent = state.moderateLimitDeg.toFixed(1);
         el.lblZoneRed.textContent = state.moderateLimitDeg.toFixed(1);
         if (state.activeTab === 'report' && currentReport) renderReportView(currentReport);
-      });
+      }
+
+      if (el.sliderThreshold) {
+        el.sliderThreshold.addEventListener('input', () => updateThreshold(el.sliderThreshold.value));
+      }
+      if (el.sliderThresholdReal) {
+        el.sliderThresholdReal.addEventListener('input', () => updateThreshold(el.sliderThresholdReal.value));
+      }
 
       // Drag directly on Stabilogram Canvas to simulate phone tilt
       function updateManualFromPointer(ev) {
@@ -1138,7 +1208,7 @@ Para a construção e execução do produto técnico de avaliação postural ine
         el.btnAudioToggle.classList.toggle('text-[var(--foreground)]', state.audioEnabled);
       });
 
-      el.btnCalibrate.addEventListener('click', () => {
+      function calibrateNeutralAxis() {
         if (state.mode === 'real') {
           state.zeroMl = state.rawDeviceMl;
           state.zeroAp = state.rawDeviceAp;
@@ -1153,7 +1223,12 @@ Para a construção e execução do produto técnico de avaliação postural ine
           el.lblSliderAp.textContent = '0.0°';
         }
         state.liveTrail = [];
-      });
+      }
+
+      el.btnCalibrate.addEventListener('click', calibrateNeutralAxis);
+      if (el.btnRealCalibrateSide) {
+        el.btnRealCalibrateSide.addEventListener('click', calibrateNeutralAxis);
+      }
 
       // Real Smartphone Sensor Support (Web DeviceMotion Accelerometer + DeviceOrientation Gyro)
       let realListenerAttached = false;
@@ -1170,7 +1245,9 @@ Para a construção e execução do produto técnico de avaliação postural ine
         state.zeroAp = state.rawDeviceAp;
         el.sensorSourceLabel.textContent = 'IMU Real · Sensores do Celular';
         el.sensorStatusPill.textContent = 'IMU Real Ativo';
-        el.realSensorHint.textContent = 'Lendo acelerômetro e giroscópio reais do aparelho. Posicione o celular no tronco (sacro/L5) e toque em "Zerar Eixo".';
+        el.realSensorHint.textContent = 'Acelerômetro e giroscópio ativos e calibrados. Posicione o aparelho na região lombossacral (L5–S1) e inicie a coleta.';
+        if (el.btnSwitchToSimNotice) el.btnSwitchToSimNotice.classList.add('hidden');
+        if (el.btnGrantIosPermission) el.btnGrantIosPermission.classList.add('hidden');
       }
 
       function handleDeviceOrientation(ev) {
@@ -1199,11 +1276,19 @@ Para a construção e execução do produto técnico de avaliação postural ine
       function updateModeButtons() {
         const isSim = state.mode === 'sim';
         el.btnModeSim.className = isSim
-          ? 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
-          : 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)]';
+          ? 'px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm'
+          : 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)]';
         el.btnModeReal.className = !isSim
-          ? 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
-          : 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)]';
+          ? 'px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm'
+          : 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)]';
+
+        // When using real sensors, the simulation bench is HIDDEN!
+        if (el.boxSimBench) {
+          el.boxSimBench.classList.toggle('hidden', !isSim);
+        }
+        if (el.boxRealSensors) {
+          el.boxRealSensors.classList.toggle('hidden', isSim);
+        }
       }
 
       async function setMode(mode) {
@@ -1212,17 +1297,16 @@ Para a construção e execução do produto técnico de avaliação postural ine
           realCheckTimeout = null;
         }
         if (mode === 'real') {
+          state.mode = 'real';
+          updateModeButtons();
+          el.sensorSourceLabel.textContent = 'IMU Real · Sensores do Celular';
+          el.sensorStatusPill.textContent = 'Verificando IMU...';
+
           try {
-            // iOS 13+ permission request
+            // iOS 13+ permission request check
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-              const permO = await DeviceOrientationEvent.requestPermission();
-              if (permO !== 'granted') {
-                el.realSensorHint.textContent = 'Permissão de orientação negada. Mantendo Simulador Biomecânico ativo.';
-                return;
-              }
-            }
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-              await DeviceMotionEvent.requestPermission().catch(() => {});
+              if (el.btnGrantIosPermission) el.btnGrantIosPermission.classList.remove('hidden');
+              el.realSensorHint.textContent = 'O iPhone exige uma autorização única para liberar os sensores inerciais. Toque no botão azul abaixo para autorizar:';
             }
 
             const beforeCount = realPacketsReceived;
@@ -1231,38 +1315,60 @@ Para a construção e execução do produto técnico de avaliação postural ine
               window.addEventListener('devicemotion', handleDeviceMotion, { passive: true });
               realListenerAttached = true;
             }
-            state.mode = 'real';
-            updateModeButtons();
-            el.sensorSourceLabel.textContent = 'Verificando IMU físico...';
-            el.sensorStatusPill.textContent = 'Aguardando IMU...';
 
             realCheckTimeout = setTimeout(() => {
               if (state.mode !== 'real') return;
               if (realPacketsReceived === beforeCount) {
-                state.mode = 'sim';
-                updateModeButtons();
-                el.sensorSourceLabel.textContent = 'IMU 50 Hz · L5/S1 (Sacro)';
-                el.sensorStatusPill.textContent = 'Sem IMU Físico Detectado';
-                el.realSensorHint.textContent = 'Nenhum sensor inercial respondeu. Se abriu pelo navegador interno do WhatsApp, toque nos três pontinhos e escolha "Abrir no Safari / Chrome". Simulador Biomecânico mantido ativo.';
+                // Keep mode real, but inform user that desktop has no sensors
+                el.sensorSourceLabel.textContent = 'IMU Físico · Sem Leitura';
+                el.sensorStatusPill.textContent = 'Sem IMU Físico no PC';
+                el.realSensorHint.textContent = 'Nenhum sensor de movimento detectado neste dispositivo. Se abriu pelo iPhone/Android no WhatsApp, toque nos três pontinhos e abra no Safari/Chrome. Se estiver no computador, você pode alternar para o Simulador abaixo:';
+                if (el.btnSwitchToSimNotice) el.btnSwitchToSimNotice.classList.remove('hidden');
               } else {
                 onFirstRealPacket();
               }
-            }, 3000);
+            }, 2500);
           } catch (_) {
-            state.mode = 'sim';
-            updateModeButtons();
-            el.realSensorHint.textContent = 'Este ambiente não expõe sensores físicos. Use o Simulador Biomecânico ao lado.';
+            el.sensorStatusPill.textContent = 'Sem IMU Físico';
+            el.realSensorHint.textContent = 'Este navegador não expõe sensores físicos. Se estiver no computador, você pode alternar para o Simulador.';
+            if (el.btnSwitchToSimNotice) el.btnSwitchToSimNotice.classList.remove('hidden');
           }
         } else {
           state.mode = 'sim';
           updateModeButtons();
-          el.sensorSourceLabel.textContent = 'IMU 50 Hz · L5/S1 (Sacro)';
+          el.sensorSourceLabel.textContent = 'Simulado · 50 Hz';
           el.sensorStatusPill.textContent = 'Simulado · 50 Hz';
+          if (el.btnSwitchToSimNotice) el.btnSwitchToSimNotice.classList.add('hidden');
         }
       }
 
       el.btnModeSim.addEventListener('click', () => setMode('sim'));
       el.btnModeReal.addEventListener('click', () => setMode('real'));
+
+      if (el.btnGrantIosPermission) {
+        el.btnGrantIosPermission.addEventListener('click', async () => {
+          try {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              const res = await DeviceOrientationEvent.requestPermission();
+              if (res === 'granted') {
+                el.btnGrantIosPermission.classList.add('hidden');
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                  await DeviceMotionEvent.requestPermission().catch(() => {});
+                }
+                setMode('real');
+              } else {
+                el.realSensorHint.textContent = 'Permissão negada no Safari. Atualize a página e autorize para usar os sensores.';
+              }
+            }
+          } catch (_) {
+            el.realSensorHint.textContent = 'Erro ao solicitar permissão. Tente abrir diretamente no Safari.';
+          }
+        });
+      }
+
+      if (el.btnSwitchToSimNotice) {
+        el.btnSwitchToSimNotice.addEventListener('click', () => setMode('sim'));
+      }
 
       // Recording Flow (3-2-1 Countdown -> Active IMU Capture -> Auto Report)
       let countdownTimer = null;
@@ -1817,6 +1923,7 @@ Para a construção e execução do produto técnico de avaliação postural ine
         drawLiveTimeseries();
         requestAnimationFrame(loop);
       }
+      setMode('real');
       requestAnimationFrame(loop);
     })();
   </script>
