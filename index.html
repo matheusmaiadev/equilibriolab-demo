@@ -40,6 +40,10 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
+        <button id="btnTopFichaTcr" type="button"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)]">
+          Ficha Técnica TCR
+        </button>
         <button id="btnModeSim" type="button"
           class="px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]">
           Simulador Biomecânico
@@ -329,16 +333,111 @@
             </button>
           </section>
 
+          <!-- TAB 4: FICHA TÉCNICA TCR -->
+          <section id="tabTcr" class="hidden p-4 space-y-3.5 flex-1 overflow-y-auto max-h-[600px]">
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3.5 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-xs font-semibold block text-[var(--foreground)]">Ficha Técnica do Produto (TCR)</span>
+                  <span class="text-[11px] text-[var(--muted-foreground)]">Residência Multiprofissional / Médica</span>
+                </div>
+                <button id="btnCopyTcrText" type="button" class="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition">
+                  Copiar p/ TCR
+                </button>
+              </div>
+              <p class="text-xs text-[var(--muted-foreground)]">
+                Tabela e especificações técnicas estruturadas para inserção direta na seção de <strong>Metodologia</strong> do relatório do TCR.
+              </p>
+            </div>
+
+            <!-- Table of Technologies -->
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-2">
+              <div class="text-xs font-semibold text-[var(--foreground)]">Quadro: Tecnologias e Programas Utilizados</div>
+              <div class="overflow-x-auto text-[11px]">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-[var(--card-border)] text-[var(--muted-foreground)]">
+                      <th class="py-1.5 pr-2 font-medium">Categoria</th>
+                      <th class="py-1.5 px-2 font-medium">Tecnologia</th>
+                      <th class="py-1.5 pl-2 font-medium">Finalidade no Aplicativo</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[var(--card-border)] text-[var(--foreground)]">
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">IDE / Editor</td>
+                      <td class="py-1.5 px-2 font-mono">VS Code</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Desenvolvimento e depuração do código-fonte</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Plataforma Mobile</td>
+                      <td class="py-1.5 px-2 font-mono">React Native / Expo</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Criação do aplicativo para Android e iOS</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Linguagens</td>
+                      <td class="py-1.5 px-2 font-mono">TypeScript / JS</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Lógica dos cálculos biomecânicos e interface</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Sensores (IMU)</td>
+                      <td class="py-1.5 px-2 font-mono">expo-sensors / Web</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Leitura do acelerômetro e giroscópio (50 Hz)</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Filtro de Sinal</td>
+                      <td class="py-1.5 px-2 font-mono">Passa-Baixa (5 Hz)</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Remoção de ruídos e isolamento postural</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Renderização</td>
+                      <td class="py-1.5 px-2 font-mono">Canvas 2D + Tailwind</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Estabilograma 2D e gráficos ao vivo</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Análise de Dados</td>
+                      <td class="py-1.5 px-2 font-mono">Covariância & RMS</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Elipse 95%, RMS AP/ML e Romberg</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Exportação</td>
+                      <td class="py-1.5 px-2 font-mono">CSV Padronizado</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Planilhas para SPSS, R, Jamovi e Excel</td>
+                    </tr>
+                    <tr>
+                      <td class="py-1.5 pr-2 font-medium">Versionamento</td>
+                      <td class="py-1.5 px-2 font-mono">Git & GitHub</td>
+                      <td class="py-1.5 pl-2 text-[var(--muted-foreground)]">Controle de versão e governança de código</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Protocol & Relatorio Parcial Checklist -->
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-2 text-xs">
+              <div class="font-semibold text-[var(--foreground)]">Itens Essenciais para o Relatório Parcial</div>
+              <ul class="space-y-1.5 text-[var(--muted-foreground)] list-disc pl-4">
+                <li><strong class="text-[var(--foreground)]">Posicionamento Anatômico:</strong> Fixação do smartphone com faixa elástica no nível de L5/S1 (sacro), próximo ao centro de massa corporal.</li>
+                <li><strong class="text-[var(--foreground)]">Protocolo de Teste:</strong> 3 coletas de 30 segundos em Olhos Abertos (OA) e 3 em Olhos Fechados (OF).</li>
+                <li><strong class="text-[var(--foreground)]">Comitê de Ética (CEP):</strong> Inserir número do parecer de aprovação ou protocolo de submissão na Plataforma Brasil (CAAE).</li>
+                <li><strong class="text-[var(--foreground)]">Status Atual:</strong> Fase de prototipagem funcional concluída com sucesso e demonstração interativa validada.</li>
+              </ul>
+            </div>
+          </section>
+
           <!-- Phone Bottom Navigation -->
-          <nav class="grid grid-cols-3 border-t border-[var(--card-border)] bg-[var(--content)] text-xs">
+          <nav class="grid grid-cols-4 border-t border-[var(--card-border)] bg-[var(--content)] text-xs text-center">
             <button type="button" data-tab="live" class="nav-btn py-3 font-semibold border-t-2 border-[var(--primary)] text-[var(--foreground)]">
               1. Avaliar
             </button>
             <button type="button" data-tab="report" class="nav-btn py-3 font-medium border-t-2 border-transparent text-[var(--muted-foreground)]">
-              2. Relatório
+              2. Laudo
             </button>
             <button type="button" data-tab="history" class="nav-btn py-3 font-medium border-t-2 border-transparent text-[var(--muted-foreground)]">
-              3. Histórico (<span id="histCount">2</span>)
+              3. Histórico
+            </button>
+            <button type="button" data-tab="tcr" class="nav-btn py-3 font-medium border-t-2 border-transparent text-[var(--muted-foreground)]">
+              4. Ficha TCR
             </button>
           </nav>
 
@@ -442,6 +541,77 @@
           <p id="realSensorHint" class="text-xs text-[var(--muted-foreground)]">
             Em um celular real (iOS/Android), o app lê o acelerômetro triaxial e giroscópio nativamente, aplica filtro passa-baixa (5 Hz) para isolar a oscilação corporal e descarta artefatos de vibração.
           </p>
+        </div>
+
+        <!-- TCR Methodology Card on Desktop Sidebar -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold">Tecnologias & Metodologia (TCR)</h3>
+            <button id="btnSideCopyTcr" type="button" class="text-xs px-2.5 py-1 rounded-md border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition font-medium">
+              Copiar p/ TCR
+            </button>
+          </div>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            Programas e componentes necessários para a confecção do produto técnico da residência:
+          </p>
+          <div class="overflow-x-auto text-[11px]">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b border-[var(--card-border)] text-[var(--muted-foreground)]">
+                  <th class="py-1.5 pr-2 font-medium">Categoria</th>
+                  <th class="py-1.5 px-2 font-medium">Tecnologia</th>
+                  <th class="py-1.5 pl-2 font-medium">Finalidade</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[var(--card-border)] text-[var(--foreground)]">
+                <tr>
+                  <td class="py-1 pr-2 font-medium">IDE / Editor</td>
+                  <td class="py-1 px-2 font-mono">VS Code</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Desenvolvimento e depuração</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Plataforma Mobile</td>
+                  <td class="py-1 px-2 font-mono">React Native / Expo</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">App para Android e iOS</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Linguagem</td>
+                  <td class="py-1 px-2 font-mono">TypeScript / JS</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Biomecânica e interface</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Sensores (IMU)</td>
+                  <td class="py-1 px-2 font-mono">expo-sensors / Web</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Acelerômetro e giroscópio (50 Hz)</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Filtro de Sinal</td>
+                  <td class="py-1 px-2 font-mono">Passa-Baixa (5 Hz)</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Isolamento do sinal postural</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Renderização</td>
+                  <td class="py-1 px-2 font-mono">Canvas 2D + Tailwind</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Estabilograma 2D em tempo real</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Análise de Dados</td>
+                  <td class="py-1 px-2 font-mono">Covariância & RMS</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Elipse 95%, RMS e Romberg</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Exportação</td>
+                  <td class="py-1 px-2 font-mono">CSV Tabular</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Compatível com SPSS, R e Excel</td>
+                </tr>
+                <tr>
+                  <td class="py-1 pr-2 font-medium">Versionamento</td>
+                  <td class="py-1 px-2 font-mono">Git & GitHub</td>
+                  <td class="py-1 pl-2 text-[var(--muted-foreground)]">Controle de versão e governança</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
       </aside>
@@ -728,6 +898,10 @@
         tabLive: document.getElementById('tabLive'),
         tabReport: document.getElementById('tabReport'),
         tabHistory: document.getElementById('tabHistory'),
+        tabTcr: document.getElementById('tabTcr'),
+        btnTopFichaTcr: document.getElementById('btnTopFichaTcr'),
+        btnCopyTcrText: document.getElementById('btnCopyTcrText'),
+        btnSideCopyTcr: document.getElementById('btnSideCopyTcr'),
         histCount: document.getElementById('histCount'),
         historyList: document.getElementById('historyList'),
         rombergValue: document.getElementById('rombergValue'),
@@ -737,12 +911,64 @@
         btnNewTestFromReport: document.getElementById('btnNewTestFromReport')
       };
 
+      // Formal text for clipboard copy
+      const tcrFormalText = `METODOLOGIA - RECURSOS COMPUTACIONAIS E TECNOLOGIAS DO PRODUTO TÉCNICO
+
+Para a construção e execução do produto técnico de avaliação postural inercial (EquilíbrioLab), foram empregados os seguintes recursos:
+
+1. Ambiente e Linguagens:
+- Visual Studio Code (IDE de desenvolvimento e depuração);
+- Node.js (v20+) com TypeScript e JavaScript (ES6+).
+
+2. Plataforma Mobile e Sensores:
+- React Native / Expo (ou Web PWA) com compatibilidade para Android e iOS;
+- Módulo expo-sensors / Web Sensor API (DeviceMotionEvent e DeviceOrientationEvent) para leitura da Unidade de Medição Inercial (IMU: acelerômetro e giroscópio) a 50 Hz;
+- Filtro digital passa-baixa (5 Hz) para isolamento da oscilação postural e supressão de ruídos de alta frequência.
+
+3. Interface e Visualização Clínica:
+- Tailwind CSS para ergonomia visual responsiva;
+- HTML5 Canvas API para renderização em tempo real do Estabilograma 2D (projeção do centro de gravidade corporal), curvas temporais AP/ML e biofeedback auditivo em tempo real.
+
+4. Métricas Biomecânicas e Estatísticas:
+- Raiz Quadrada da Média dos Quadrados (RMS Global, AP e ML);
+- Área da Elipse de Confiança de 95% via matriz de covariância;
+- Velocidade Média e Comprimento de Trajeto de Oscilação;
+- Quociente de Romberg (relação de dispersão Olhos Fechados / Olhos Abertos).
+
+5. Armazenamento e Governança:
+- Persistência local segura no dispositivo (LGPD-compliant sem dependência de nuvem);
+- Exportação tabular delimitada (.CSV) para processamento em SPSS, Jamovi, R e Microsoft Excel;
+- Controle de versão e integridade com Git e repositório GitHub.`;
+
+      function copyTcrToClipboard(triggerBtn) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(tcrFormalText).then(() => {
+            const original = triggerBtn.textContent;
+            triggerBtn.textContent = 'Copiado! ✓';
+            setTimeout(() => { triggerBtn.textContent = original; }, 2000);
+          }).catch(() => {
+            alert('Texto da Metodologia copiado para a área de transferência.');
+          });
+        }
+      }
+
+      if (el.btnCopyTcrText) {
+        el.btnCopyTcrText.addEventListener('click', () => copyTcrToClipboard(el.btnCopyTcrText));
+      }
+      if (el.btnSideCopyTcr) {
+        el.btnSideCopyTcr.addEventListener('click', () => copyTcrToClipboard(el.btnSideCopyTcr));
+      }
+      if (el.btnTopFichaTcr) {
+        el.btnTopFichaTcr.addEventListener('click', () => switchTab('tcr'));
+      }
+
       // Tab Navigation
       function switchTab(tabName) {
         state.activeTab = tabName;
         el.tabLive.classList.toggle('hidden', tabName !== 'live');
         el.tabReport.classList.toggle('hidden', tabName !== 'report');
         el.tabHistory.classList.toggle('hidden', tabName !== 'history');
+        if (el.tabTcr) el.tabTcr.classList.toggle('hidden', tabName !== 'tcr');
 
         document.querySelectorAll('.nav-btn').forEach((btn) => {
           const active = btn.dataset.tab === tabName;
