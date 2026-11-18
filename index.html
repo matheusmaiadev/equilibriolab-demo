@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EquilíbrioLab — Protótipo de Avaliação Postural Inercial</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    canvas {
+      touch-action: none;
+      user-select: none;
+    }
+    .status-dot {
+      animation: pulseDot 1.8s infinite ease-in-out;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.88); }
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen p-4 md:p-6">
+  <div class="max-w-6xl mx-auto space-y-5">
+
+    <!-- Top Header -->
+    <header class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="space-y-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-semibold text-base tracking-tight">EquilíbrioLab</span>
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--secondary)] text-[var(--secondary-foreground)] border border-[var(--card-border)]">
+            Protótipo Funcional · TCC Residência
+          </span>
+        </div>
+        <p class="text-xs text-[var(--muted-foreground)]">
+          Avaliação de oscilações do equilíbrio postural com acelerômetro e giroscópio (IMU) do smartphone em tempo real.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnModeSim" type="button"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]">
+          Simulador Biomecânico
+        </button>
+        <button id="btnModeReal" type="button"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)]">
+          Usar Sensores do Celular (IMU)
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Grid: Mobile Frame + Bench Simulator -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- Left: Smartphone Interactive App Frame -->
+      <div class="lg:col-span-7 flex justify-center">
+        <div class="w-full max-w-md bg-[var(--card)] border-2 border-[var(--border)] rounded-[2rem] shadow-sm overflow-hidden flex flex-col">
+
+          <!-- Phone Top Bar -->
+          <div class="px-4 pt-3 pb-2.5 border-b border-[var(--card-border)] bg-[var(--content)] flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span id="sensorDot" class="w-2.5 h-2.5 rounded-full status-dot" style="background: var(--success);"></span>
+              <span id="sensorSourceLabel" class="text-xs font-medium">IMU 50 Hz · L5/S1 (Sacro)</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button id="btnAudioToggle" type="button" title="Ativar alerta sonoro quando oscilar fora da zona estável"
+                class="px-2.5 py-1 rounded-md text-xs border border-[var(--border)] bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition">
+                Som: Off
+              </button>
+              <button id="btnCalibrate" type="button" title="Zerar posição atual como centro neutro"
+                class="px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:border-[var(--primary)] transition">
+                Zerar Eixo
+              </button>
+            </div>
+          </div>
+
+          <!-- TAB 1: LIVE EVALUATION -->
+          <section id="tabLive" class="p-4 space-y-3.5 flex-1">
+
+            <!-- Instant Feedback Banner: "Quanto está oscilando vs quanto não está" -->
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3.5 space-y-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <div class="text-xs text-[var(--muted-foreground)]">Estado Postural Atual</div>
+                  <div id="liveStateBadge" class="text-sm font-semibold mt-0.5" style="color: var(--success);">
+                    ESTÁVEL · Baixa Oscilação
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-xs text-[var(--muted-foreground)]">Índice de Estabilidade</div>
+                  <div id="liveStabilityScore" class="text-xl font-bold font-mono tabular-nums">94%</div>
+                </div>
+              </div>
+
+              <!-- Split Progress Bar: Estável vs Oscilando -->
+              <div class="space-y-1.5">
+                <div class="w-full h-3 rounded-full overflow-hidden flex bg-[var(--card)] border border-[var(--card-border)]">
+                  <div id="barStable" class="h-full transition-all duration-150" style="width: 92%; background: var(--success);"></div>
+                  <div id="barModerate" class="h-full transition-all duration-150" style="width: 8%; background: var(--warning);"></div>
+                  <div id="barHigh" class="h-full transition-all duration-150" style="width: 0%; background: var(--error);"></div>
+                </div>
+                <div class="flex items-center justify-between text-xs tabular-nums">
+                  <span class="font-medium" style="color: var(--success);">
+                    Sem oscilar (Estável): <strong id="lblPctStable">92%</strong>
+                  </span>
+                  <span class="font-medium" style="color: var(--warning);">
+                    Oscilando: <strong id="lblPctOscillating">8%</strong>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Live Instant Numbers -->
+              <div class="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--card-border)] text-xs">
+                <div>
+                  <span class="text-[var(--muted-foreground)] block">Inclinação</span>
+                  <span id="lblInstantDeg" class="font-mono font-semibold tabular-nums">0.62°</span>
+                </div>
+                <div>
+                  <span class="text-[var(--muted-foreground)] block">Aceleração</span>
+                  <span id="lblInstantAcc" class="font-mono font-semibold tabular-nums">0.11 m/s²</span>
+                </div>
+                <div>
+                  <span class="text-[var(--muted-foreground)] block">RMS Atual</span>
+                  <span id="lblInstantRms" class="font-mono font-semibold tabular-nums">0.58°</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2D Stabilogram Canvas -->
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium">Estabilograma 2D (Projeção do Centro de Massa)</span>
+                <span class="text-[var(--muted-foreground)]">Arraste para testar</span>
+              </div>
+              <div class="relative flex justify-center">
+                <canvas id="stabilogramCanvas" class="w-full max-w-[290px] aspect-square rounded-lg cursor-crosshair"></canvas>
+                <!-- Countdown Overlay -->
+                <div id="countdownOverlay" class="hidden absolute inset-0 rounded-lg bg-[var(--background)]/85 flex flex-col items-center justify-center text-center p-4">
+                  <span class="text-xs uppercase tracking-wider text-[var(--muted-foreground)]">Mantenha a postura imóvel</span>
+                  <span id="countdownNumber" class="text-4xl font-bold font-mono my-1">3</span>
+                  <span class="text-xs text-[var(--muted-foreground)]">Calibrando eixo inercial...</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-center gap-4 text-xs text-[var(--muted-foreground)]">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full inline-block" style="background: var(--success);"></span>
+                  Estável (&le; <span id="lblZoneGreen">1.5</span>°)
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full inline-block" style="background: var(--warning);"></span>
+                  Moderada (&le; <span id="lblZoneAmber">3.5</span>°)
+                </span>
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full inline-block" style="background: var(--error);"></span>
+                  Alta (&gt; <span id="lblZoneRed">3.5</span>°)
+                </span>
+              </div>
+            </div>
+
+            <!-- Live Time-Series AP / ML -->
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium">Série Temporal (Últimos 8s)</span>
+                <div class="flex items-center gap-3">
+                  <span class="flex items-center gap-1">
+                    <span class="w-2.5 h-1 rounded inline-block" style="background: var(--chart-1);"></span> AP (Frente/Trás)
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <span class="w-2.5 h-1 rounded inline-block" style="background: var(--chart-2);"></span> ML (Esq/Dir)
+                  </span>
+                </div>
+              </div>
+              <canvas id="timeseriesCanvas" class="w-full h-24 rounded"></canvas>
+            </div>
+
+            <!-- Protocol Setup & Record CTA -->
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-3">
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <label class="space-y-1">
+                  <span class="text-[var(--muted-foreground)] block">Condição do Teste</span>
+                  <select id="selCondition" class="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] px-2.5 py-1.5 text-xs">
+                    <option value="Olhos Abertos (OA)">Olhos Abertos (OA)</option>
+                    <option value="Olhos Fechados (OF)">Olhos Fechados (OF)</option>
+                    <option value="Apoio Unipodal D">Apoio Unipodal D</option>
+                    <option value="Apoio Unipodal E">Apoio Unipodal E</option>
+                    <option value="Espuma Instável">Espuma Instável</option>
+                  </select>
+                </label>
+                <label class="space-y-1">
+                  <span class="text-[var(--muted-foreground)] block">Duração da Coleta</span>
+                  <select id="selDuration" class="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] px-2.5 py-1.5 text-xs">
+                    <option value="10">10s (Teste Rápido)</option>
+                    <option value="15" selected>15s (Demonstração)</option>
+                    <option value="30">30s (Padrão Clínico)</option>
+                    <option value="60">60s (Protocolo Longo)</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="block space-y-1 text-xs">
+                <span class="text-[var(--muted-foreground)] block">Identificação do Avaliado / Momento</span>
+                <input id="inpPatient" type="text" value="Participante 01 — Avaliação Basal"
+                  class="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] px-2.5 py-1.5 text-xs" />
+              </label>
+
+              <!-- Recording Progress (shown while active) -->
+              <div id="recordingBox" class="hidden space-y-1.5">
+                <div class="flex items-center justify-between text-xs font-mono tabular-nums">
+                  <span style="color: var(--error);" class="font-semibold">● GRAVANDO COLETA IMU</span>
+                  <span id="lblRecordingTime">0.0s / 15.0s</span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-[var(--card)] overflow-hidden border border-[var(--card-border)]">
+                  <div id="recordingProgress" class="h-full transition-all duration-100" style="width: 0%; background: var(--primary);"></div>
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                <button id="btnStartTest" type="button"
+                  class="flex-1 py-2.5 px-4 rounded-xl text-xs font-semibold transition bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90">
+                  Iniciar Coleta Postural
+                </button>
+                <button id="btnFinishEarly" type="button"
+                  class="hidden py-2.5 px-3 rounded-xl text-xs font-semibold transition border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)]">
+                  Concluir Agora
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 2: CLINICAL REPORT -->
+          <section id="tabReport" class="hidden p-4 space-y-3.5 flex-1">
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3.5 space-y-2.5">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <span id="repMeta" class="text-xs text-[var(--muted-foreground)] block">Participante 01 · Olhos Abertos (OA) · 30s</span>
+                  <h2 id="repVerdict" class="text-base font-semibold mt-0.5" style="color: var(--success);">
+                    Equilíbrio Preservado (Baixa Oscilação)
+                  </h2>
+                </div>
+                <div class="text-right">
+                  <span class="text-xs text-[var(--muted-foreground)] block">Score</span>
+                  <span id="repScore" class="text-2xl font-bold font-mono tabular-nums">91</span>
+                </div>
+              </div>
+
+              <!-- Report Time Breakdown -->
+              <div class="space-y-1.5 pt-1">
+                <div class="text-xs font-medium">Distribuição do Tempo de Oscilação</div>
+                <div class="w-full h-3.5 rounded-full overflow-hidden flex bg-[var(--card)] border border-[var(--card-border)]">
+                  <div id="repBarStable" class="h-full" style="width: 88%; background: var(--success);"></div>
+                  <div id="repBarMod" class="h-full" style="width: 10%; background: var(--warning);"></div>
+                  <div id="repBarHigh" class="h-full" style="width: 2%; background: var(--error);"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-1 text-xs tabular-nums pt-0.5">
+                  <span style="color: var(--success);">Estável: <strong id="repPctStable">88%</strong></span>
+                  <span style="color: var(--warning);">Moderada: <strong id="repPctMod">10%</strong></span>
+                  <span style="color: var(--error);">Alta: <strong id="repPctHigh">2%</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4 Biomechanical Metrics for TCC -->
+            <div class="grid grid-cols-2 gap-2.5 text-xs">
+              <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-0.5">
+                <span class="text-[var(--muted-foreground)] block">RMS Global (Inércia)</span>
+                <span id="repRms" class="text-base font-bold font-mono tabular-nums block">0.74°</span>
+                <span id="repRmsAcc" class="text-[var(--muted-foreground)] font-mono tabular-nums block">0.13 m/s²</span>
+              </div>
+              <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-0.5">
+                <span class="text-[var(--muted-foreground)] block">Área Elipse 95%</span>
+                <span id="repArea" class="text-base font-bold font-mono tabular-nums block">2.41 graus²</span>
+                <span class="text-[var(--muted-foreground)] block">Dispersão bivariada</span>
+              </div>
+              <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-0.5">
+                <span class="text-[var(--muted-foreground)] block">Velocidade Média</span>
+                <span id="repVel" class="text-base font-bold font-mono tabular-nums block">1.32 °/s</span>
+                <span id="repPath" class="text-[var(--muted-foreground)] font-mono tabular-nums block">Trajeto: 39.6°</span>
+              </div>
+              <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-0.5">
+                <span class="text-[var(--muted-foreground)] block">Eixo Predominante</span>
+                <span id="repAxis" class="text-base font-bold font-mono tabular-nums block">AP (62%)</span>
+                <span id="repApMlDetail" class="text-[var(--muted-foreground)] font-mono tabular-nums block">AP 0.58° · ML 0.45°</span>
+              </div>
+            </div>
+
+            <!-- Consolidated Stabilogram with 95% Confidence Ellipse -->
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium">Nuvem Estabilométrica + Elipse de 95%</span>
+                <span id="repSampleCount" class="text-[var(--muted-foreground)] font-mono">750 amostras</span>
+              </div>
+              <div class="flex justify-center">
+                <canvas id="reportCanvas" class="w-full max-w-[250px] aspect-square rounded-lg"></canvas>
+              </div>
+            </div>
+
+            <!-- Export & Repeat Actions -->
+            <div class="flex gap-2">
+              <button id="btnExportCsv" type="button"
+                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)] transition">
+                Baixar CSV (Excel/SPSS)
+              </button>
+              <button id="btnNewTestFromReport" type="button"
+                class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 transition">
+                Nova Coleta
+              </button>
+            </div>
+          </section>
+
+          <!-- TAB 3: HISTORY & ROMBERG -->
+          <section id="tabHistory" class="hidden p-4 space-y-3.5 flex-1">
+            <div class="rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3.5 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold">Quociente de Romberg (OF / OA)</span>
+                <span id="rombergValue" class="text-sm font-bold font-mono tabular-nums" style="color: var(--primary);">2.38x</span>
+              </div>
+              <p id="rombergDesc" class="text-xs text-[var(--muted-foreground)]">
+                Comparação automática da Área da Elipse 95% entre a última coleta de Olhos Fechados (OF) e Olhos Abertos (OA).
+              </p>
+            </div>
+
+            <div class="space-y-2" id="historyList"></div>
+
+            <button id="btnExportAllCsv" type="button"
+              class="w-full py-2 px-3 rounded-xl text-xs font-semibold border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)] transition">
+              Exportar Resumo da Coorte (.CSV para TCC)
+            </button>
+          </section>
+
+          <!-- Phone Bottom Navigation -->
+          <nav class="grid grid-cols-3 border-t border-[var(--card-border)] bg-[var(--content)] text-xs">
+            <button type="button" data-tab="live" class="nav-btn py-3 font-semibold border-t-2 border-[var(--primary)] text-[var(--foreground)]">
+              1. Avaliar
+            </button>
+            <button type="button" data-tab="report" class="nav-btn py-3 font-medium border-t-2 border-transparent text-[var(--muted-foreground)]">
+              2. Relatório
+            </button>
+            <button type="button" data-tab="history" class="nav-btn py-3 font-medium border-t-2 border-transparent text-[var(--muted-foreground)]">
+              3. Histórico (<span id="histCount">2</span>)
+            </button>
+          </nav>
+
+        </div>
+      </div>
+
+      <!-- Right: Biomechanical Bench & Sensor Controls -->
+      <aside class="lg:col-span-5 space-y-4">
+
+        <!-- Simulator Presets -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-3.5">
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold">Bancada de Simulação de Paciente</h3>
+            <p class="text-xs text-[var(--muted-foreground)]">
+              Alterne os perfis abaixo durante ou antes da coleta para ver o aplicativo reagir às oscilações em tempo real:
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2" id="presetButtons">
+            <button type="button" data-preset="stable"
+              class="preset-btn text-left p-3 rounded-xl border border-[var(--primary)] bg-[var(--content)] transition space-y-0.5">
+              <div class="flex items-center justify-between text-xs font-semibold">
+                <span>1. Postura Estável (Olhos Abertos)</span>
+                <span style="color: var(--success);">~94% Estável</span>
+              </div>
+              <p class="text-xs text-[var(--muted-foreground)]">Oscilação basal fisiológica (&lt; 1.2°). Permanece no centro verde.</p>
+            </button>
+
+            <button type="button" data-preset="moderate"
+              class="preset-btn text-left p-3 rounded-xl border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] transition space-y-0.5">
+              <div class="flex items-center justify-between text-xs font-semibold">
+                <span>2. Oscilação Moderada (Olhos Fechados)</span>
+                <span style="color: var(--warning);">~58% Estável</span>
+              </div>
+              <p class="text-xs text-[var(--muted-foreground)]">Privação visual com aumento ântero-posterior na zona amarela.</p>
+            </button>
+
+            <button type="button" data-preset="unstable"
+              class="preset-btn text-left p-3 rounded-xl border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] transition space-y-0.5">
+              <div class="flex items-center justify-between text-xs font-semibold">
+                <span>3. Instabilidade Postural (Déficit/Idoso)</span>
+                <span style="color: var(--error);">~24% Estável</span>
+              </div>
+              <p class="text-xs text-[var(--muted-foreground)]">Excursões amplas AP e ML (&gt; 3.5°) acionando alerta de oscilação alta.</p>
+            </button>
+
+            <button type="button" data-preset="manual"
+              class="preset-btn text-left p-3 rounded-xl border border-[var(--border)] bg-[var(--content)] hover:border-[var(--primary)] transition space-y-0.5">
+              <div class="flex items-center justify-between text-xs font-semibold">
+                <span>4. Inclinação Manual (Sliders / Mouse)</span>
+                <span class="text-[var(--muted-foreground)]">Interativo</span>
+              </div>
+              <p class="text-xs text-[var(--muted-foreground)]">Arraste o alvo 2D ou use os controles abaixo para inclinar o celular.</p>
+            </button>
+          </div>
+
+          <!-- Manual Sliders & Sensitivity -->
+          <div class="pt-2 border-t border-[var(--card-border)] space-y-2.5 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-[var(--muted-foreground)]">Inclinação Manual ML (Esq / Dir)</span>
+              <span id="lblSliderMl" class="font-mono tabular-nums">0.0°</span>
+            </div>
+            <input id="sliderMl" type="range" min="-5.5" max="5.5" step="0.1" value="0" class="w-full accent-[var(--primary)]" />
+
+            <div class="flex items-center justify-between">
+              <span class="text-[var(--muted-foreground)]">Inclinação Manual AP (Trás / Frente)</span>
+              <span id="lblSliderAp" class="font-mono tabular-nums">0.0°</span>
+            </div>
+            <input id="sliderAp" type="range" min="-5.5" max="5.5" step="0.1" value="0" class="w-full accent-[var(--primary)]" />
+
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[var(--muted-foreground)]">Limiar Zona Estável (Sensibilidade)</span>
+              <span id="lblThreshold" class="font-mono tabular-nums">1.5°</span>
+            </div>
+            <input id="sliderThreshold" type="range" min="0.8" max="3.0" step="0.1" value="1.5" class="w-full accent-[var(--primary)]" />
+          </div>
+        </div>
+
+        <!-- Live Raw Telemetry -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-4 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold">Telemetria Bruta dos Sensores (IMU)</h3>
+            <span id="sensorStatusPill" class="text-xs px-2 py-0.5 rounded bg-[var(--secondary)] text-[var(--secondary-foreground)]">
+              Simulado · 50 Hz
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-xs font-mono tabular-nums">
+            <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
+              <span class="text-[var(--muted-foreground)] font-sans block">Accel X (ML)</span>
+              <span id="rawAx">0.04 m/s²</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
+              <span class="text-[var(--muted-foreground)] font-sans block">Accel Y (AP)</span>
+              <span id="rawAy">0.09 m/s²</span>
+            </div>
+            <div class="p-2.5 rounded-lg bg-[var(--content)] border border-[var(--card-border)]">
+              <span class="text-[var(--muted-foreground)] font-sans block">Accel Z (G)</span>
+              <span id="rawAz">9.80 m/s²</span>
+            </div>
+          </div>
+          <p id="realSensorHint" class="text-xs text-[var(--muted-foreground)]">
+            Em um celular real (iOS/Android), o app lê o acelerômetro triaxial e giroscópio nativamente, aplica filtro passa-baixa (5 Hz) para isolar a oscilação corporal e descarta artefatos de vibração.
+          </p>
+        </div>
+
+      </aside>
+
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // Standalone browser fallback: only runs when opened outside Antigravity (e.g., Chrome/Safari/Mobile link)
+      if (!getComputedStyle(document.documentElement).getPropertyValue('--background').trim()) {
+        const applyExternalPalette = (dark) => {
+          const palette = dark
+            ? {
+                '--background': '#0b1120',
+                '--content': '#111827',
+                '--card': '#1e293b',
+                '--card-border': '#334155',
+                '--border': '#334155',
+                '--foreground': '#f8fafc',
+                '--muted-foreground': '#94a3b8',
+                '--primary': '#3b82f6',
+                '--primary-foreground': '#ffffff',
+                '--secondary': '#1e293b',
+                '--secondary-foreground': '#e2e8f0',
+                '--success': '#22c55e',
+                '--warning': '#f59e0b',
+                '--error': '#ef4444',
+                '--chart-1': '#38bdf8',
+                '--chart-2': '#f472b6'
+              }
+            : {
+                '--background': '#f1f5f9',
+                '--content': '#f8fafc',
+                '--card': '#ffffff',
+                '--card-border': '#e2e8f0',
+                '--border': '#cbd5e1',
+                '--foreground': '#0f172a',
+                '--muted-foreground': '#64748b',
+                '--primary': '#2563eb',
+                '--primary-foreground': '#ffffff',
+                '--secondary': '#e2e8f0',
+                '--secondary-foreground': '#1e293b',
+                '--success': '#16a34a',
+                '--warning': '#d97706',
+                '--error': '#dc2626',
+                '--chart-1': '#2563eb',
+                '--chart-2': '#db2777'
+              };
+          Object.entries(palette).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+        };
+        const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+        applyExternalPalette(mq ? mq.matches : false);
+        if (mq && mq.addEventListener) {
+          mq.addEventListener('change', (e) => {
+            applyExternalPalette(e.matches);
+            window.dispatchEvent(new Event('themechange'));
+          });
+        }
+      }
+
+      // Theme color helper compatible with Antigravity light/dark tokens + standalone browser fallback
+      function token(name, fallback) {
+        const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return val || fallback;
+      }
+
+      // State
+      const state = {
+        mode: 'sim', // 'sim' | 'real'
+        preset: 'stable', // 'stable' | 'moderate' | 'unstable' | 'manual'
+        activeTab: 'live',
+        audioEnabled: false,
+        stableLimitDeg: 1.5,
+        moderateLimitDeg: 3.5,
+
+        // Physics / sensor angles in degrees (ML = x, AP = y)
+        ml: 0,
+        ap: 0,
+        velMl: 0,
+        velAp: 0,
+        zeroMl: 0,
+        zeroAp: 0,
+        rawDeviceMl: 0,
+        rawDeviceAp: 0,
+        manualMl: 0,
+        manualAp: 0,
+        isDraggingCanvas: false,
+
+        // Rolling live buffer (~8 seconds at 50Hz = 400 pts)
+        liveTrail: [],
+        maxLivePoints: 400,
+
+        // Recording state
+        isCountingDown: false,
+        isRecording: false,
+        recStartTime: 0,
+        recDurationSec: 15,
+        recSamples: [],
+
+        // Saved sessions for TCC History (pre-seeded with 2 realistic sessions)
+        sessions: []
+      };
+
+      // Generate synthetic realistic samples for pre-seeded sessions so Report & History work immediately
+      function generateSeedSession(id, patient, condition, durationSec, spreadMl, spreadAp) {
+        const samples = [];
+        let x = 0, y = 0;
+        const n = durationSec * 25;
+        for (let i = 0; i < n; i++) {
+          const t = i / 25;
+          x = 0.86 * x + (Math.random() - 0.5) * spreadMl + 0.22 * spreadMl * Math.sin(t * 1.1);
+          y = 0.88 * y + (Math.random() - 0.5) * spreadAp + 0.30 * spreadAp * Math.cos(t * 1.4);
+          const r = Math.hypot(x, y);
+          const acc = 9.81 * Math.sin((r * Math.PI) / 180);
+          samples.push({ t, ml: x, ap: y, r, acc });
+        }
+        return computeSessionMetrics(id, patient, condition, durationSec, samples);
+      }
+
+      function computeSessionMetrics(id, patient, condition, durationSec, samples) {
+        if (!samples.length) return null;
+        const n = samples.length;
+        let sumR2 = 0, sumMl2 = 0, sumAp2 = 0, sumAcc2 = 0;
+        let sumMl = 0, sumAp = 0;
+        let pathLen = 0;
+        let stableCount = 0, modCount = 0, highCount = 0;
+
+        for (let i = 0; i < n; i++) {
+          const s = samples[i];
+          sumMl += s.ml;
+          sumAp += s.ap;
+          sumMl2 += s.ml * s.ml;
+          sumAp2 += s.ap * s.ap;
+          sumR2 += s.r * s.r;
+          sumAcc2 += s.acc * s.acc;
+          if (i > 0) {
+            pathLen += Math.hypot(s.ml - samples[i - 1].ml, s.ap - samples[i - 1].ap);
+          }
+          if (s.r <= state.stableLimitDeg) stableCount++;
+          else if (s.r <= state.moderateLimitDeg) modCount++;
+          else highCount++;
+        }
+
+        const meanMl = sumMl / n;
+        const meanAp = sumAp / n;
+        let varX = 0, varY = 0, covXY = 0;
+        for (let i = 0; i < n; i++) {
+          const dx = samples[i].ml - meanMl;
+          const dy = samples[i].ap - meanAp;
+          varX += dx * dx;
+          varY += dy * dy;
+          covXY += dx * dy;
+        }
+        varX /= Math.max(1, n - 1);
+        varY /= Math.max(1, n - 1);
+        covXY /= Math.max(1, n - 1);
+
+        // 95% Confidence Ellipse via covariance eigenvalues (chi2_2,0.95 = 5.991)
+        const trace = varX + varY;
+        const disc = Math.sqrt(Math.max(0, ((varX - varY) / 2) ** 2 + covXY * covXY));
+        const lambda1 = Math.max(0.0001, trace / 2 + disc);
+        const lambda2 = Math.max(0.0001, trace / 2 - disc);
+        const angleRad = 0.5 * Math.atan2(2 * covXY, varX - varY);
+        const semiA = Math.sqrt(5.991 * lambda1);
+        const semiB = Math.sqrt(5.991 * lambda2);
+        const area95 = Math.PI * semiA * semiB;
+
+        const rmsDeg = Math.sqrt(sumR2 / n);
+        const rmsMl = Math.sqrt(sumMl2 / n);
+        const rmsAp = Math.sqrt(sumAp2 / n);
+        const rmsAcc = Math.sqrt(sumAcc2 / n);
+        const velDegPerSec = pathLen / Math.max(1, durationSec);
+
+        const pctStable = Math.round((stableCount / n) * 100);
+        const pctMod = Math.round((modCount / n) * 100);
+        const pctHigh = Math.max(0, 100 - pctStable - pctMod);
+
+        const score = Math.max(5, Math.min(99, Math.round(100 - rmsDeg * 16 - pctHigh * 0.45)));
+        const apShare = Math.round((rmsAp / Math.max(0.001, rmsAp + rmsMl)) * 100);
+
+        return {
+          id,
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          patient,
+          condition,
+          durationSec,
+          samples,
+          rmsDeg,
+          rmsMl,
+          rmsAp,
+          rmsAcc,
+          area95,
+          velDegPerSec,
+          pathLen,
+          pctStable,
+          pctMod,
+          pctHigh,
+          score,
+          apShare,
+          ellipse: { meanMl, meanAp, semiA, semiB, angleRad }
+        };
+      }
+
+      // Initialize seed history
+      const seedOA = generateSeedSession('S1', 'Participante Demo', 'Olhos Abertos (OA)', 30, 0.42, 0.55);
+      const seedOF = generateSeedSession('S2', 'Participante Demo', 'Olhos Fechados (OF)', 30, 0.65, 0.92);
+      state.sessions = [seedOF, seedOA];
+      let currentReport = seedOA;
+
+      // Web Audio Biofeedback
+      let audioCtx = null;
+      let lastBeepMs = 0;
+      function maybeTriggerAudioBiofeedback(radiusDeg) {
+        if (!state.audioEnabled || radiusDeg <= state.stableLimitDeg) return;
+        const now = performance.now();
+        const interval = radiusDeg > state.moderateLimitDeg ? 260 : 520;
+        if (now - lastBeepMs < interval) return;
+        lastBeepMs = now;
+        try {
+          if (!audioCtx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) audioCtx = new Ctx();
+          }
+          if (!audioCtx) return;
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = radiusDeg > state.moderateLimitDeg ? 660 : 440;
+          gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.11);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.12);
+        } catch (_) {}
+      }
+
+      // DOM Elements
+      const el = {
+        btnModeSim: document.getElementById('btnModeSim'),
+        btnModeReal: document.getElementById('btnModeReal'),
+        btnAudioToggle: document.getElementById('btnAudioToggle'),
+        btnCalibrate: document.getElementById('btnCalibrate'),
+        sensorSourceLabel: document.getElementById('sensorSourceLabel'),
+        sensorStatusPill: document.getElementById('sensorStatusPill'),
+        realSensorHint: document.getElementById('realSensorHint'),
+        liveStateBadge: document.getElementById('liveStateBadge'),
+        liveStabilityScore: document.getElementById('liveStabilityScore'),
+        barStable: document.getElementById('barStable'),
+        barModerate: document.getElementById('barModerate'),
+        barHigh: document.getElementById('barHigh'),
+        lblPctStable: document.getElementById('lblPctStable'),
+        lblPctOscillating: document.getElementById('lblPctOscillating'),
+        lblInstantDeg: document.getElementById('lblInstantDeg'),
+        lblInstantAcc: document.getElementById('lblInstantAcc'),
+        lblInstantRms: document.getElementById('lblInstantRms'),
+        lblZoneGreen: document.getElementById('lblZoneGreen'),
+        lblZoneAmber: document.getElementById('lblZoneAmber'),
+        lblZoneRed: document.getElementById('lblZoneRed'),
+        stabilogramCanvas: document.getElementById('stabilogramCanvas'),
+        timeseriesCanvas: document.getElementById('timeseriesCanvas'),
+        reportCanvas: document.getElementById('reportCanvas'),
+        countdownOverlay: document.getElementById('countdownOverlay'),
+        countdownNumber: document.getElementById('countdownNumber'),
+        selCondition: document.getElementById('selCondition'),
+        selDuration: document.getElementById('selDuration'),
+        inpPatient: document.getElementById('inpPatient'),
+        recordingBox: document.getElementById('recordingBox'),
+        lblRecordingTime: document.getElementById('lblRecordingTime'),
+        recordingProgress: document.getElementById('recordingProgress'),
+        btnStartTest: document.getElementById('btnStartTest'),
+        btnFinishEarly: document.getElementById('btnFinishEarly'),
+        sliderMl: document.getElementById('sliderMl'),
+        sliderAp: document.getElementById('sliderAp'),
+        sliderThreshold: document.getElementById('sliderThreshold'),
+        lblSliderMl: document.getElementById('lblSliderMl'),
+        lblSliderAp: document.getElementById('lblSliderAp'),
+        lblThreshold: document.getElementById('lblThreshold'),
+        rawAx: document.getElementById('rawAx'),
+        rawAy: document.getElementById('rawAy'),
+        rawAz: document.getElementById('rawAz'),
+        tabLive: document.getElementById('tabLive'),
+        tabReport: document.getElementById('tabReport'),
+        tabHistory: document.getElementById('tabHistory'),
+        histCount: document.getElementById('histCount'),
+        historyList: document.getElementById('historyList'),
+        rombergValue: document.getElementById('rombergValue'),
+        rombergDesc: document.getElementById('rombergDesc'),
+        btnExportCsv: document.getElementById('btnExportCsv'),
+        btnExportAllCsv: document.getElementById('btnExportAllCsv'),
+        btnNewTestFromReport: document.getElementById('btnNewTestFromReport')
+      };
+
+      // Tab Navigation
+      function switchTab(tabName) {
+        state.activeTab = tabName;
+        el.tabLive.classList.toggle('hidden', tabName !== 'live');
+        el.tabReport.classList.toggle('hidden', tabName !== 'report');
+        el.tabHistory.classList.toggle('hidden', tabName !== 'history');
+
+        document.querySelectorAll('.nav-btn').forEach((btn) => {
+          const active = btn.dataset.tab === tabName;
+          btn.classList.toggle('border-[var(--primary)]', active);
+          btn.classList.toggle('border-transparent', !active);
+          btn.classList.toggle('text-[var(--foreground)]', active);
+          btn.classList.toggle('font-semibold', active);
+          btn.classList.toggle('text-[var(--muted-foreground)]', !active);
+        });
+
+        if (tabName === 'report' && currentReport) {
+          renderReportView(currentReport);
+        } else if (tabName === 'history') {
+          renderHistoryView();
+        }
+      }
+
+      document.querySelectorAll('.nav-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      // Preset selection
+      function setPreset(preset) {
+        state.preset = preset;
+        document.querySelectorAll('.preset-btn').forEach((btn) => {
+          const active = btn.dataset.preset === preset;
+          btn.classList.toggle('border-[var(--primary)]', active);
+          btn.classList.toggle('border-[var(--border)]', !active);
+        });
+      }
+
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (state.mode !== 'sim') setMode('sim');
+          setPreset(btn.dataset.preset);
+        });
+      });
+
+      // Manual Sliders
+      el.sliderMl.addEventListener('input', () => {
+        state.manualMl = parseFloat(el.sliderMl.value);
+        el.lblSliderMl.textContent = `${state.manualMl.toFixed(1)}°`;
+        if (state.mode === 'sim' && state.preset !== 'manual') setPreset('manual');
+      });
+
+      el.sliderAp.addEventListener('input', () => {
+        state.manualAp = parseFloat(el.sliderAp.value);
+        el.lblSliderAp.textContent = `${state.manualAp.toFixed(1)}°`;
+        if (state.mode === 'sim' && state.preset !== 'manual') setPreset('manual');
+      });
+
+      el.sliderThreshold.addEventListener('input', () => {
+        state.stableLimitDeg = parseFloat(el.sliderThreshold.value);
+        state.moderateLimitDeg = +(state.stableLimitDeg * 2.25).toFixed(1);
+        el.lblThreshold.textContent = `${state.stableLimitDeg.toFixed(1)}°`;
+        el.lblZoneGreen.textContent = state.stableLimitDeg.toFixed(1);
+        el.lblZoneAmber.textContent = state.moderateLimitDeg.toFixed(1);
+        el.lblZoneRed.textContent = state.moderateLimitDeg.toFixed(1);
+        if (state.activeTab === 'report' && currentReport) renderReportView(currentReport);
+      });
+
+      // Drag directly on Stabilogram Canvas to simulate phone tilt
+      function updateManualFromPointer(ev) {
+        const rect = el.stabilogramCanvas.getBoundingClientRect();
+        const nx = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+        const ny = ((ev.clientY - rect.top) / rect.height) * 2 - 1;
+        const maxDeg = 5.5;
+        state.manualMl = Math.max(-maxDeg, Math.min(maxDeg, nx * maxDeg));
+        state.manualAp = Math.max(-maxDeg, Math.min(maxDeg, -ny * maxDeg));
+        el.sliderMl.value = state.manualMl.toFixed(1);
+        el.sliderAp.value = state.manualAp.toFixed(1);
+        el.lblSliderMl.textContent = `${state.manualMl.toFixed(1)}°`;
+        el.lblSliderAp.textContent = `${state.manualAp.toFixed(1)}°`;
+      }
+
+      el.stabilogramCanvas.addEventListener('pointerdown', (ev) => {
+        state.isDraggingCanvas = true;
+        if (state.mode === 'sim') setPreset('manual');
+        el.stabilogramCanvas.setPointerCapture(ev.pointerId);
+        updateManualFromPointer(ev);
+      });
+      el.stabilogramCanvas.addEventListener('pointermove', (ev) => {
+        if (!state.isDraggingCanvas) return;
+        updateManualFromPointer(ev);
+      });
+      el.stabilogramCanvas.addEventListener('pointerup', () => {
+        state.isDraggingCanvas = false;
+      });
+
+      // Audio Toggle & Calibration
+      el.btnAudioToggle.addEventListener('click', () => {
+        state.audioEnabled = !state.audioEnabled;
+        el.btnAudioToggle.textContent = state.audioEnabled ? 'Som: On' : 'Som: Off';
+        el.btnAudioToggle.classList.toggle('border-[var(--primary)]', state.audioEnabled);
+        el.btnAudioToggle.classList.toggle('text-[var(--foreground)]', state.audioEnabled);
+      });
+
+      el.btnCalibrate.addEventListener('click', () => {
+        if (state.mode === 'real') {
+          state.zeroMl = state.rawDeviceMl;
+          state.zeroAp = state.rawDeviceAp;
+        } else {
+          state.manualMl = 0;
+          state.manualAp = 0;
+          state.ml = 0;
+          state.ap = 0;
+          el.sliderMl.value = '0';
+          el.sliderAp.value = '0';
+          el.lblSliderMl.textContent = '0.0°';
+          el.lblSliderAp.textContent = '0.0°';
+        }
+        state.liveTrail = [];
+      });
+
+      // Real Smartphone Sensor Support (Web DeviceMotion Accelerometer + DeviceOrientation Gyro)
+      let realListenerAttached = false;
+      let hasOrientationEvent = false;
+      let realPacketsReceived = 0;
+      let realCheckTimeout = null;
+
+      function onFirstRealPacket() {
+        if (realCheckTimeout) {
+          clearTimeout(realCheckTimeout);
+          realCheckTimeout = null;
+        }
+        state.zeroMl = state.rawDeviceMl;
+        state.zeroAp = state.rawDeviceAp;
+        el.sensorSourceLabel.textContent = 'IMU Real · Sensores do Celular';
+        el.sensorStatusPill.textContent = 'IMU Real Ativo';
+        el.realSensorHint.textContent = 'Lendo acelerômetro e giroscópio reais do aparelho. Posicione o celular no tronco (sacro/L5) e toque em "Zerar Eixo".';
+      }
+
+      function handleDeviceOrientation(ev) {
+        if (ev.gamma == null && ev.beta == null) return;
+        hasOrientationEvent = true;
+        realPacketsReceived++;
+        state.rawDeviceMl = ev.gamma || 0;
+        state.rawDeviceAp = (ev.beta || 0) - 90;
+        if (realCheckTimeout) onFirstRealPacket();
+      }
+
+      function handleDeviceMotion(ev) {
+        const acc = ev.accelerationIncludingGravity;
+        if (!acc || (acc.x == null && acc.y == null && acc.z == null)) return;
+        realPacketsReceived++;
+        if (!hasOrientationEvent) {
+          const ax = acc.x || 0;
+          const ay = acc.y || 0;
+          const az = acc.z || 0;
+          state.rawDeviceMl = (Math.atan2(ax, Math.hypot(ay, az)) * 180) / Math.PI;
+          state.rawDeviceAp = (Math.atan2(az, Math.hypot(ax, ay)) * 180) / Math.PI;
+        }
+        if (realCheckTimeout) onFirstRealPacket();
+      }
+
+      function updateModeButtons() {
+        const isSim = state.mode === 'sim';
+        el.btnModeSim.className = isSim
+          ? 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
+          : 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)]';
+        el.btnModeReal.className = !isSim
+          ? 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]'
+          : 'px-3 py-1.5 rounded-lg text-xs font-medium transition border border-[var(--border)] bg-[var(--content)] text-[var(--foreground)] hover:border-[var(--primary)]';
+      }
+
+      async function setMode(mode) {
+        if (realCheckTimeout) {
+          clearTimeout(realCheckTimeout);
+          realCheckTimeout = null;
+        }
+        if (mode === 'real') {
+          try {
+            // iOS 13+ permission request
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+              const permO = await DeviceOrientationEvent.requestPermission();
+              if (permO !== 'granted') {
+                el.realSensorHint.textContent = 'Permissão de orientação negada. Mantendo Simulador Biomecânico ativo.';
+                return;
+              }
+            }
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+              await DeviceMotionEvent.requestPermission().catch(() => {});
+            }
+
+            const beforeCount = realPacketsReceived;
+            if (!realListenerAttached) {
+              window.addEventListener('deviceorientation', handleDeviceOrientation, { passive: true });
+              window.addEventListener('devicemotion', handleDeviceMotion, { passive: true });
+              realListenerAttached = true;
+            }
+            state.mode = 'real';
+            updateModeButtons();
+            el.sensorSourceLabel.textContent = 'Verificando IMU físico...';
+            el.sensorStatusPill.textContent = 'Aguardando IMU...';
+
+            realCheckTimeout = setTimeout(() => {
+              if (state.mode !== 'real') return;
+              if (realPacketsReceived === beforeCount) {
+                state.mode = 'sim';
+                updateModeButtons();
+                el.sensorSourceLabel.textContent = 'IMU 50 Hz · L5/S1 (Sacro)';
+                el.sensorStatusPill.textContent = 'Sem IMU Físico Detectado';
+                el.realSensorHint.textContent = 'Nenhum sensor inercial respondeu. Se abriu pelo navegador interno do WhatsApp, toque nos três pontinhos e escolha "Abrir no Safari / Chrome". Simulador Biomecânico mantido ativo.';
+              } else {
+                onFirstRealPacket();
+              }
+            }, 3000);
+          } catch (_) {
+            state.mode = 'sim';
+            updateModeButtons();
+            el.realSensorHint.textContent = 'Este ambiente não expõe sensores físicos. Use o Simulador Biomecânico ao lado.';
+          }
+        } else {
+          state.mode = 'sim';
+          updateModeButtons();
+          el.sensorSourceLabel.textContent = 'IMU 50 Hz · L5/S1 (Sacro)';
+          el.sensorStatusPill.textContent = 'Simulado · 50 Hz';
+        }
+      }
+
+      el.btnModeSim.addEventListener('click', () => setMode('sim'));
+      el.btnModeReal.addEventListener('click', () => setMode('real'));
+
+      // Recording Flow (3-2-1 Countdown -> Active IMU Capture -> Auto Report)
+      let countdownTimer = null;
+      function startCountdownAndRecord() {
+        if (state.isRecording || state.isCountingDown) return;
+        state.recDurationSec = parseInt(el.selDuration.value, 10) || 15;
+        state.isCountingDown = true;
+        let count = 3;
+        el.countdownNumber.textContent = String(count);
+        el.countdownOverlay.classList.remove('hidden');
+        el.btnStartTest.disabled = true;
+        el.btnStartTest.classList.add('opacity-60');
+
+        countdownTimer = setInterval(() => {
+          count -= 1;
+          if (count > 0) {
+            el.countdownNumber.textContent = String(count);
+          } else {
+            clearInterval(countdownTimer);
+            el.countdownOverlay.classList.add('hidden');
+            state.isCountingDown = false;
+            beginRecording();
+          }
+        }, 700);
+      }
+
+      function beginRecording() {
+        if (state.mode === 'real') {
+          state.zeroMl = state.rawDeviceMl;
+          state.zeroAp = state.rawDeviceAp;
+        }
+        state.isRecording = true;
+        state.recStartTime = performance.now();
+        state.recSamples = [];
+        el.recordingBox.classList.remove('hidden');
+        el.btnFinishEarly.classList.remove('hidden');
+        el.btnStartTest.textContent = 'Coletando Dados...';
+      }
+
+      function finishRecording() {
+        if (!state.isRecording) return;
+        state.isRecording = false;
+        el.recordingBox.classList.add('hidden');
+        el.btnFinishEarly.classList.add('hidden');
+        el.btnStartTest.disabled = false;
+        el.btnStartTest.classList.remove('opacity-60');
+        el.btnStartTest.textContent = 'Iniciar Coleta Postural';
+
+        const elapsedSec = Math.max(1, (performance.now() - state.recStartTime) / 1000);
+        const patient = el.inpPatient.value.trim() || 'Participante';
+        const condition = el.selCondition.value;
+        const report = computeSessionMetrics(
+          `S${state.sessions.length + 1}`,
+          patient,
+          condition,
+          Math.round(elapsedSec),
+          state.recSamples.slice()
+        );
+        if (report) {
+          state.sessions.unshift(report);
+          currentReport = report;
+          el.histCount.textContent = String(state.sessions.length);
+          switchTab('report');
+        }
+      }
+
+      el.btnStartTest.addEventListener('click', startCountdownAndRecord);
+      el.btnFinishEarly.addEventListener('click', finishRecording);
+      el.btnNewTestFromReport.addEventListener('click', () => switchTab('live'));
+
+      // Physics step (50 Hz equivalent update)
+      let lastFrameTime = performance.now();
+      function stepBiomechanics(now) {
+        const dt = Math.min(0.05, Math.max(0.005, (now - lastFrameTime) / 1000));
+        lastFrameTime = now;
+        const t = now / 1000;
+
+        if (state.mode === 'real') {
+          const targetMl = Math.max(-6, Math.min(6, state.rawDeviceMl - state.zeroMl));
+          const targetAp = Math.max(-6, Math.min(6, state.rawDeviceAp - state.zeroAp));
+          // 5 Hz low-pass smoothing
+          const alpha = 0.22;
+          state.ml += alpha * (targetMl - state.ml);
+          state.ap += alpha * (targetAp - state.ap);
+        } else if (state.preset === 'manual') {
+          const jitterMl = (Math.random() - 0.5) * 0.08;
+          const jitterAp = (Math.random() - 0.5) * 0.08;
+          state.ml += 0.25 * (state.manualMl + jitterMl - state.ml);
+          state.ap += 0.25 * (state.manualAp + jitterAp - state.ap);
+        } else {
+          // Physiological inverted pendulum parameters per preset
+          let noiseMl = 0.9, noiseAp = 1.2, driftAmp = 0.35, stiffness = 4.6;
+          if (state.preset === 'moderate') {
+            noiseMl = 2.5;
+            noiseAp = 3.8;
+            driftAmp = 1.25;
+            stiffness = 3.1;
+          } else if (state.preset === 'unstable') {
+            noiseMl = 5.4;
+            noiseAp = 6.8;
+            driftAmp = 2.45;
+            stiffness = 2.1;
+          }
+
+          const respiratoryAp = driftAmp * Math.sin(t * 1.35) + 0.45 * driftAmp * Math.cos(t * 0.62);
+          const swayMl = 0.72 * driftAmp * Math.sin(t * 0.95 + 0.8);
+
+          const forceMl = -stiffness * (state.ml - swayMl) - 2.6 * state.velMl + (Math.random() - 0.5) * noiseMl * 6.5;
+          const forceAp = -stiffness * (state.ap - respiratoryAp) - 2.6 * state.velAp + (Math.random() - 0.5) * noiseAp * 6.5;
+
+          state.velMl += forceMl * dt;
+          state.velAp += forceAp * dt;
+          state.ml = Math.max(-5.8, Math.min(5.8, state.ml + state.velMl * dt));
+          state.ap = Math.max(-5.8, Math.min(5.8, state.ap + state.velAp * dt));
+        }
+
+        const r = Math.hypot(state.ml, state.ap);
+        const ax = 9.81 * Math.sin((state.ml * Math.PI) / 180);
+        const ay = 9.81 * Math.sin((state.ap * Math.PI) / 180);
+        const az = 9.81 * Math.cos((Math.min(85, r) * Math.PI) / 180);
+        const horizAcc = Math.hypot(ax, ay);
+
+        const sample = { t, ml: state.ml, ap: state.ap, r, acc: horizAcc };
+        state.liveTrail.push(sample);
+        if (state.liveTrail.length > state.maxLivePoints) state.liveTrail.shift();
+
+        maybeTriggerAudioBiofeedback(r);
+
+        if (state.isRecording) {
+          const recElapsed = (now - state.recStartTime) / 1000;
+          state.recSamples.push({ t: recElapsed, ml: state.ml, ap: state.ap, r, acc: horizAcc });
+          const pct = Math.min(100, (recElapsed / state.recDurationSec) * 100);
+          el.lblRecordingTime.textContent = `${recElapsed.toFixed(1)}s / ${state.recDurationSec.toFixed(1)}s`;
+          el.recordingProgress.style.width = `${pct}%`;
+          if (recElapsed >= state.recDurationSec) {
+            finishRecording();
+          }
+        }
+
+        // Update Live UI Indicators
+        el.rawAx.textContent = `${ax >= 0 ? '+' : ''}${ax.toFixed(2)} m/s²`;
+        el.rawAy.textContent = `${ay >= 0 ? '+' : ''}${ay.toFixed(2)} m/s²`;
+        el.rawAz.textContent = `${az.toFixed(2)} m/s²`;
+
+        const activePool = state.isRecording && state.recSamples.length > 5 ? state.recSamples : state.liveTrail;
+        let stCount = 0, mdCount = 0, hiCount = 0, sumR2 = 0;
+        for (let i = 0; i < activePool.length; i++) {
+          const pr = activePool[i].r;
+          sumR2 += pr * pr;
+          if (pr <= state.stableLimitDeg) stCount++;
+          else if (pr <= state.moderateLimitDeg) mdCount++;
+          else hiCount++;
+        }
+        const total = Math.max(1, activePool.length);
+        const pStable = Math.round((stCount / total) * 100);
+        const pMod = Math.round((mdCount / total) * 100);
+        const pHigh = Math.max(0, 100 - pStable - pMod);
+        const rmsLive = Math.sqrt(sumR2 / total);
+        const liveScore = Math.max(5, Math.min(99, Math.round(100 - rmsLive * 16 - pHigh * 0.45)));
+
+        el.barStable.style.width = `${pStable}%`;
+        el.barModerate.style.width = `${pMod}%`;
+        el.barHigh.style.width = `${pHigh}%`;
+        el.lblPctStable.textContent = `${pStable}%`;
+        el.lblPctOscillating.textContent = `${100 - pStable}%`;
+        el.liveStabilityScore.textContent = `${liveScore}%`;
+        el.lblInstantDeg.textContent = `${r.toFixed(2)}°`;
+        el.lblInstantAcc.textContent = `${horizAcc.toFixed(2)} m/s²`;
+        el.lblInstantRms.textContent = `${rmsLive.toFixed(2)}°`;
+
+        if (r <= state.stableLimitDeg) {
+          el.liveStateBadge.textContent = 'ESTÁVEL · Baixa Oscilação';
+          el.liveStateBadge.style.color = 'var(--success)';
+        } else if (r <= state.moderateLimitDeg) {
+          el.liveStateBadge.textContent = 'ATENÇÃO · Oscilação Moderada';
+          el.liveStateBadge.style.color = 'var(--warning)';
+        } else {
+          el.liveStateBadge.textContent = 'ALERTA · Oscilação Alta (Instável)';
+          el.liveStateBadge.style.color = 'var(--error)';
+        }
+      }
+
+      // Canvas Helpers (HiDPI aware)
+      function prepareCanvas(canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(10, Math.floor(rect.width));
+        const h = Math.max(10, Math.floor(rect.height));
+        if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+          canvas.width = w * dpr;
+          canvas.height = h * dpr;
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        return { ctx, w, h };
+      }
+
+      function drawTargetGrid(ctx, w, h, maxDeg) {
+        const cx = w / 2;
+        const cy = h / 2;
+        const radiusPx = Math.min(w, h) * 0.44;
+        const degToPx = (deg) => (deg / maxDeg) * radiusPx;
+
+        const cSuccess = token('--success', '#16a34a');
+        const cWarning = token('--warning', '#d97706');
+        const cError = token('--error', '#dc2626');
+        const cBorder = token('--border', '#94a3b8');
+        const cMuted = token('--muted-foreground', '#64748b');
+        const cCard = token('--card', '#ffffff');
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = cCard;
+        ctx.fillRect(0, 0, w, h);
+
+        // Outer high-sway ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, radiusPx, 0, Math.PI * 2);
+        ctx.strokeStyle = cError;
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Moderate ring
+        const rMod = degToPx(Math.min(maxDeg, state.moderateLimitDeg));
+        ctx.beginPath();
+        ctx.arc(cx, cy, rMod, 0, Math.PI * 2);
+        ctx.fillStyle = cWarning;
+        ctx.globalAlpha = 0.08;
+        ctx.fill();
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = cWarning;
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+
+        // Stable green zone
+        const rStable = degToPx(Math.min(maxDeg, state.stableLimitDeg));
+        ctx.beginPath();
+        ctx.arc(cx, cy, rStable, 0, Math.PI * 2);
+        ctx.fillStyle = cSuccess;
+        ctx.globalAlpha = 0.13;
+        ctx.fill();
+        ctx.globalAlpha = 0.75;
+        ctx.strokeStyle = cSuccess;
+        ctx.setLineDash([]);
+        ctx.stroke();
+
+        // Crosshairs
+        ctx.globalAlpha = 0.35;
+        ctx.strokeStyle = cBorder;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx - radiusPx - 8, cy);
+        ctx.lineTo(cx + radiusPx + 8, cy);
+        ctx.moveTo(cx, cy - radiusPx - 8);
+        ctx.lineTo(cx, cy + radiusPx + 8);
+        ctx.stroke();
+
+        // Axis labels
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = cMuted;
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Anterior (Frente)', cx, 14);
+        ctx.fillText('Posterior (Trás)', cx, h - 6);
+        ctx.textAlign = 'left';
+        ctx.fillText('E', 6, cy - 4);
+        ctx.textAlign = 'right';
+        ctx.fillText('D', w - 6, cy - 4);
+
+        ctx.globalAlpha = 1;
+        return { cx, cy, degToPx, cSuccess, cWarning, cError };
+      }
+
+      function drawLiveStabilogram() {
+        if (state.activeTab !== 'live') return;
+        const { ctx, w, h } = prepareCanvas(el.stabilogramCanvas);
+        const maxDeg = 6.0;
+        const { cx, cy, degToPx, cSuccess, cWarning, cError } = drawTargetGrid(ctx, w, h, maxDeg);
+        const cPrimary = token('--primary', '#2563eb');
+        const cFg = token('--foreground', '#0f172a');
+
+        // Draw recording cloud if active
+        if (state.isRecording && state.recSamples.length > 1) {
+          ctx.fillStyle = cPrimary;
+          ctx.globalAlpha = 0.22;
+          for (let i = 0; i < state.recSamples.length; i += 2) {
+            const s = state.recSamples[i];
+            ctx.beginPath();
+            ctx.arc(cx + degToPx(s.ml), cy - degToPx(s.ap), 1.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        // Draw recent trajectory (~140 points)
+        const trail = state.liveTrail;
+        const startIdx = Math.max(0, trail.length - 140);
+        if (trail.length > 1) {
+          ctx.beginPath();
+          for (let i = startIdx; i < trail.length; i++) {
+            const px = cx + degToPx(trail[i].ml);
+            const py = cy - degToPx(trail[i].ap);
+            if (i === startIdx) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = cPrimary;
+          ctx.globalAlpha = 0.7;
+          ctx.lineWidth = 1.75;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        // Current Center-of-Mass marker
+        const curX = cx + degToPx(state.ml);
+        const curY = cy - degToPx(state.ap);
+        const r = Math.hypot(state.ml, state.ap);
+        const dotColor = r <= state.stableLimitDeg ? cSuccess : r <= state.moderateLimitDeg ? cWarning : cError;
+
+        ctx.beginPath();
+        ctx.arc(curX, curY, 7, 0, Math.PI * 2);
+        ctx.fillStyle = dotColor;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = cFg;
+        ctx.stroke();
+      }
+
+      function drawLiveTimeseries() {
+        if (state.activeTab !== 'live') return;
+        const { ctx, w, h } = prepareCanvas(el.timeseriesCanvas);
+        const cCard = token('--card', '#ffffff');
+        const cBorder = token('--border', '#94a3b8');
+        const cSuccess = token('--success', '#16a34a');
+        const cChart1 = token('--chart-1', '#2563eb');
+        const cChart2 = token('--chart-2', '#db2777');
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = cCard;
+        ctx.fillRect(0, 0, w, h);
+
+        const midY = h / 2;
+        const maxDeg = 5.5;
+        const yForDeg = (deg) => midY - (deg / maxDeg) * (h * 0.44);
+
+        // Stable band shading
+        const bandTop = yForDeg(state.stableLimitDeg);
+        const bandBot = yForDeg(-state.stableLimitDeg);
+        ctx.fillStyle = cSuccess;
+        ctx.globalAlpha = 0.1;
+        ctx.fillRect(0, bandTop, w, bandBot - bandTop);
+
+        // Zero line
+        ctx.globalAlpha = 0.4;
+        ctx.strokeStyle = cBorder;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, midY);
+        ctx.lineTo(w, midY);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        const trail = state.liveTrail;
+        if (trail.length < 2) return;
+
+        // AP curve
+        ctx.beginPath();
+        for (let i = 0; i < trail.length; i++) {
+          const x = (i / (state.maxLivePoints - 1)) * w;
+          const y = yForDeg(trail[i].ap);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = cChart1;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        // ML curve
+        ctx.beginPath();
+        for (let i = 0; i < trail.length; i++) {
+          const x = (i / (state.maxLivePoints - 1)) * w;
+          const y = yForDeg(trail[i].ml);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = cChart2;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
+      // Render Report Tab
+      function renderReportView(rep) {
+        // Recompute thresholds in case user adjusted sensitivity slider
+        const updated = computeSessionMetrics(rep.id, rep.patient, rep.condition, rep.durationSec, rep.samples);
+        Object.assign(rep, updated);
+
+        document.getElementById('repMeta').textContent = `${rep.patient} · ${rep.condition} · ${rep.durationSec}s`;
+        document.getElementById('repScore').textContent = String(rep.score);
+
+        const verdictEl = document.getElementById('repVerdict');
+        if (rep.pctStable >= 75) {
+          verdictEl.textContent = 'Equilíbrio Preservado (Baixa Oscilação)';
+          verdictEl.style.color = 'var(--success)';
+        } else if (rep.pctStable >= 45) {
+          verdictEl.textContent = 'Oscilação Moderada Detectada';
+          verdictEl.style.color = 'var(--warning)';
+        } else {
+          verdictEl.textContent = 'Instabilidade Postural Elevada';
+          verdictEl.style.color = 'var(--error)';
+        }
+
+        document.getElementById('repBarStable').style.width = `${rep.pctStable}%`;
+        document.getElementById('repBarMod').style.width = `${rep.pctMod}%`;
+        document.getElementById('repBarHigh').style.width = `${rep.pctHigh}%`;
+        document.getElementById('repPctStable').textContent = `${rep.pctStable}%`;
+        document.getElementById('repPctMod').textContent = `${rep.pctMod}%`;
+        document.getElementById('repPctHigh').textContent = `${rep.pctHigh}%`;
+
+        document.getElementById('repRms').textContent = `${rep.rmsDeg.toFixed(2)}°`;
+        document.getElementById('repRmsAcc').textContent = `${rep.rmsAcc.toFixed(2)} m/s²`;
+        document.getElementById('repArea').textContent = `${rep.area95.toFixed(2)} graus²`;
+        document.getElementById('repVel').textContent = `${rep.velDegPerSec.toFixed(2)} °/s`;
+        document.getElementById('repPath').textContent = `Trajeto: ${rep.pathLen.toFixed(1)}°`;
+        document.getElementById('repAxis').textContent = rep.apShare >= 50 ? `AP (${rep.apShare}%)` : `ML (${100 - rep.apShare}%)`;
+        document.getElementById('repApMlDetail').textContent = `AP ${rep.rmsAp.toFixed(2)}° · ML ${rep.rmsMl.toFixed(2)}°`;
+        document.getElementById('repSampleCount').textContent = `${rep.samples.length} amostras`;
+
+        requestAnimationFrame(() => drawReportCanvas(rep));
+      }
+
+      function drawReportCanvas(rep) {
+        if (state.activeTab !== 'report' || !rep) return;
+        const { ctx, w, h } = prepareCanvas(el.reportCanvas);
+        const maxDeg = 6.0;
+        const { cx, cy, degToPx } = drawTargetGrid(ctx, w, h, maxDeg);
+        const cPrimary = token('--primary', '#2563eb');
+        const cChart2 = token('--chart-2', '#db2777');
+
+        // Trajectory cloud
+        ctx.beginPath();
+        for (let i = 0; i < rep.samples.length; i++) {
+          const px = cx + degToPx(rep.samples[i].ml);
+          const py = cy - degToPx(rep.samples[i].ap);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.strokeStyle = cPrimary;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // 95% Confidence Ellipse
+        const { meanMl, meanAp, semiA, semiB, angleRad } = rep.ellipse;
+        ctx.save();
+        ctx.translate(cx + degToPx(meanMl), cy - degToPx(meanAp));
+        ctx.rotate(-angleRad);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, degToPx(semiA), degToPx(semiB), 0, 0, Math.PI * 2);
+        ctx.fillStyle = cChart2;
+        ctx.globalAlpha = 0.16;
+        ctx.fill();
+        ctx.globalAlpha = 0.9;
+        ctx.strokeStyle = cChart2;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+
+      // Render History & Romberg Quotient
+      function renderHistoryView() {
+        const latestOA = state.sessions.find((s) => s.condition.includes('OA'));
+        const latestOF = state.sessions.find((s) => s.condition.includes('OF'));
+        if (latestOA && latestOF) {
+          const rq = latestOF.area95 / Math.max(0.05, latestOA.area95);
+          el.rombergValue.textContent = `${rq.toFixed(2)}x`;
+          el.rombergDesc.textContent = `Área OF (${latestOF.area95.toFixed(2)} graus²) ÷ Área OA (${latestOA.area95.toFixed(2)} graus²). Valores > 2.0x indicam maior dependência visual para manter o equilíbrio.`;
+        }
+
+        el.historyList.innerHTML = '';
+        state.sessions.forEach((s) => {
+          const card = document.createElement('div');
+          card.className = 'rounded-xl border border-[var(--card-border)] bg-[var(--content)] p-3 flex items-center justify-between gap-2 text-xs';
+          const badgeColor = s.pctStable >= 75 ? 'var(--success)' : s.pctStable >= 45 ? 'var(--warning)' : 'var(--error)';
+          card.innerHTML = `
+            <div class="space-y-0.5">
+              <div class="font-semibold">${s.patient}</div>
+              <div class="text-[var(--muted-foreground)]">${s.condition} · ${s.durationSec}s · ${s.timestamp}</div>
+              <div class="font-mono tabular-nums">
+                RMS: <strong>${s.rmsDeg.toFixed(2)}°</strong> · Área 95%: <strong>${s.area95.toFixed(2)}°²</strong>
+              </div>
+            </div>
+            <div class="text-right space-y-1">
+              <span class="font-bold font-mono tabular-nums block" style="color: ${badgeColor};">${s.pctStable}% estável</span>
+              <button type="button" class="px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--card)] font-medium hover:border-[var(--primary)]">
+                Abrir
+              </button>
+            </div>
+          `;
+          card.querySelector('button').addEventListener('click', () => {
+            currentReport = s;
+            switchTab('report');
+          });
+          el.historyList.appendChild(card);
+        });
+      }
+
+      // CSV Exporters for TCC statistical analysis
+      function downloadCsv(filename, content) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      el.btnExportCsv.addEventListener('click', () => {
+        if (!currentReport) return;
+        const header = 'tempo_s,inclinacao_ml_graus,inclinacao_ap_graus,oscilacao_radial_graus,aceleracao_horiz_ms2,zona\n';
+        const rows = currentReport.samples.map((s) => {
+          const z = s.r <= state.stableLimitDeg ? 'ESTAVEL' : s.r <= state.moderateLimitDeg ? 'MODERADA' : 'ALTA';
+          return `${s.t.toFixed(3)},${s.ml.toFixed(4)},${s.ap.toFixed(4)},${s.r.toFixed(4)},${s.acc.toFixed(4)},${z}`;
+        });
+        downloadCsv(`coleta_${currentReport.id}_imu.csv`, header + rows.join('\n'));
+      });
+
+      el.btnExportAllCsv.addEventListener('click', () => {
+        const header = 'id,horario,participante,condicao,duracao_s,pct_estavel,pct_oscilando,rms_graus,rms_ms2,area_elipse95_graus2,velocidade_graus_s,score\n';
+        const rows = state.sessions.map((s) =>
+          `${s.id},${s.timestamp},"${s.patient}","${s.condition}",${s.durationSec},${s.pctStable},${100 - s.pctStable},${s.rmsDeg.toFixed(3)},${s.rmsAcc.toFixed(3)},${s.area95.toFixed(3)},${s.velDegPerSec.toFixed(3)},${s.score}`
+        );
+        downloadCsv('resumo_coorte_tcc_equilibrio.csv', header + rows.join('\n'));
+      });
+
+      // Live Theme Sync for Canvases
+      window.addEventListener('themechange', () => {
+        drawLiveStabilogram();
+        drawLiveTimeseries();
+        if (currentReport) drawReportCanvas(currentReport);
+      });
+      window.addEventListener('resize', () => {
+        if (currentReport) drawReportCanvas(currentReport);
+      });
+
+      // Main 60fps Loop
+      function loop(now) {
+        stepBiomechanics(now);
+        drawLiveStabilogram();
+        drawLiveTimeseries();
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
